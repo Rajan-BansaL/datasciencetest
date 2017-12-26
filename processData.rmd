@@ -1,0 +1,102 @@
+---
+#Title: "Seedbox Data Science test"
+
+
+
+```  
+{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+
+require(data.table)
+require(ggplot2)
+require(tables)
+require(knitr)
+
+setwd('C:/Users/rajan/Desktop/datasciencetestmaster')
+rm(list=ls())
+
+
+testSamples <- read.csv('testSamples.csv')
+transData <- read.csv('transData.csv')
+
+testSamples <- data.table(testSamples)
+transData <- data.table(transData)
+transData1 <- merge(testSamples,transData,by="sample_id")
+
+```
+
+
+
+
+### Q1  What is the aproximate probability distribution between the test group and the control group
+
+ 0 -> control group ->  cancel using web form  
+ 1 -> test group -> calling in
+ 
+Around 25% users belong to test group and rest 75% to control group 
+
+
+```{Q1,echo = FALSE ,warning = F}
+
+
+
+
+Samples <- nrow(testSamples)
+testSamples1 <- testSamples[,list(Percent = length(sample_id)/Samples),
+                                  by= 'test_group']
+testSamples1$test_group <- as.factor(testSamples1$test_group)
+ggplot(testSamples1,aes(x=test_group,y=Percent,fill = test_group))+geom_bar(stat='identity')
+
+```
+
+### Q2  Is a user that must call-in to cancel more likely to generate at least 1 addition REBILL?
+
+For trasaction data , out of 1643 users who must call- in to cancel , 1556 users are generating REBILL trasaction. So ,yes, the above hypothesis is true
+
+```{Q2, echo=FALSE}
+transdata2 <- subset(transData1, select=c(sample_id,transaction_type,test_group))
+nrow(((transdata2[test_group == '1'])))
+nrow((unique(transdata2[test_group == '1'])))
+nrow(unique(transdata2[test_group == '1' & transaction_type=='REBILL']))
+
+```
+
+
+
+
+### Q3  Is a user that must call-in to cancel more likely to generate more revenues?
+
+A user who must call in has lower average  revenue (**58.3**) than a user who can cancel through web form(**83.2**). So above hypothesis is false
+
+```{Q3, echo=FALSE}
+
+transDataRev <- transData1[,list(Revenue = sum(transaction_amount),
+                                Users = length(unique(sample_id))),
+                          by = 'test_group']
+
+transDataRev$RevperUser <- transDataRev$Revenue/transDataRev$Users
+
+kable(transDataRev,caption = 'Revenue per User by group')
+
+
+```
+
+
+
+
+### Q4  Is a user that must call-in more likely to produce a higher chargeback rate(CHARGEBACKs/REBILLs)?
+
+A user who must call in has lower average  chargeback rate (**.00001**) than a user who can cancel through web form(**.00002**). So above hypothesis is false
+
+```{Q4, echo=FALSE}
+
+transDataChargeBack <- transData1[,list(ChargeBack = length(transaction_id[transaction_type == 'CHARGEBACK']),
+                                        Rebill = length(transaction_id[transaction_type == 'REBILL']),
+                                        Users = length(unique(sample_id))),
+                                  by = 'test_group']
+
+transDataChargeBack$ChargeBackRateperUser <- transDataChargeBack$ChargeBack/(transDataChargeBack$Rebill*transDataChargeBack$Users)
+
+
+
+```
